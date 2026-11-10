@@ -1,1 +1,27 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#0f1112"/><rect x="96" y="96" width="320" height="320" rx="34" fill="#17191b"/><rect x="126" y="126" width="260" height="260" fill="#a8b592"/><g stroke="#c2ccb1" stroke-width="3.5" opacity=".7"><path d="M152 126V386M181 126V386M210 126V386M239 126V386M268 126V386M297 126V386M326 126V386M355 126V386"/><path d="M126 152H386M126 181H386M126 210H386M126 239H386M126 268H386M126 297H386M126 326H386M126 355H386"/></g><g fill="#27321f"><rect x="169" y="291" width="23" height="23"/><rect x="194" y="291" width="23" height="23"/><rect x="219" y="291" width="23" height="23"/><rect x="244" y="291" width="23" height="23"/><rect x="269" y="291" width="23" height="23"/><rect x="269" y="266" width="23" height="23"/><rect x="269" y="241" width="23" height="23"/><rect x="269" y="216" width="23" height="23"/><rect x="294" y="216" width="23" height="23"/><rect x="319" y="216" width="23" height="23"/><rect x="320" y="165" width="9" height="9"/><rect x="329" y="156" width="9" height="9"/><rect x="329" y="174" width="9" height="9"/><rect x="338" y="165" width="9" height="9"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<rect width="512" height="512" fill="#0b0d0d"/>
+<g transform="translate(51.2 51.2) scale(.8)">
+<g fill="#b8cf72" shape-rendering="crispEdges">
+<!-- coiled tail -->
+<rect x="92" y="338" width="32" height="32"/><rect x="124" y="322" width="32" height="32"/>
+<rect x="156" y="306" width="32" height="32"/><rect x="188" y="290" width="32" height="32"/>
+<rect x="220" y="274" width="32" height="32"/>
+<!-- head silhouette -->
+<path d="M118 250h24v-48h24v-40h32v-32h48V98h80v16h48v24h32v24h24v32h-16v24h-72v-16h-40v24h-32v48h-48v-24h-48v24h-56z"/>
+<!-- eye cut -->
+</g>
+<g fill="#0b0d0d" shape-rendering="crispEdges">
+<rect x="286" y="138" width="38" height="38"/><rect x="298" y="146" width="18" height="18" fill="#d9e89c"/>
+<!-- open mouth -->
+<path d="M254 194h156v28h-24v28h-28v28h-32v30h-46v-26h-34v-34h-26v-30h34z"/>
+</g>
+<!-- fangs -->
+<g fill="#e4efb1" shape-rendering="crispEdges">
+<path d="M338 220h22v58l-11 24-11-24z"/><path d="M382 220h20v48l-10 22-10-22z"/>
+</g>
+<!-- tongue -->
+<path d="M302 296h22v46h46v18h30v18h-30v-10h-30v10h-30v-18h-8z" fill="#b8cf72" shape-rendering="crispEdges"/>
+<!-- small LCD pixels -->
+<g fill="#718344" opacity=".8" shape-rendering="crispEdges"><rect x="104" y="382" width="18" height="18"/><rect x="132" y="398" width="18" height="18"/><rect x="160" y="414" width="18" height="18"/></g>
+
+</g></svg>
