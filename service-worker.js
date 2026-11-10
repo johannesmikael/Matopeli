@@ -1,5 +1,5 @@
 /* MOKIA Snake service worker: cache-first for the app's own files only. */
-const CACHE = 'mokia-snake-v1';
+const CACHE = `mokia-snake-v3`;
 const ASSETS = [
   './', './index.html', './manifest.webmanifest',
   './icons/icon.svg', './icons/icon-maskable.svg'
