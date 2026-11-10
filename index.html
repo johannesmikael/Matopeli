@@ -1,0 +1,916 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>MOKIA Snake</title>
+<meta name="description" content="Classic monochrome Snake on a fictional year-2000 MOKIA phone.">
+<meta name="theme-color" content="#0e0f10">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="MOKIA Snake">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+</head>
+<body>
+<style>
+/* Layout: one handset, absolutely centred on a dark desk and scaled as a single physical object */
+:root{
+  /* Layout: one handset centred on a dark backdrop, scaled as a single object. Shell, fascia, bezel and key openings are layered SVG; the keys are real buttons sitting in the openings. */
+  --room:#0e0f10;
+  --room-glow:#272a2c;
+  --key:#505458;
+  --key-navi:#5b5f63;
+  --ink:#e4e5df;
+  --ink-dim:rgba(228,229,223,.5);
+  --ink-faint:rgba(228,229,223,.24);
+  --lcd-hi:#b0bc99;
+  --lcd-lo:#a0ac8a;
+  --lcd-ink:#27321f;
+  --focus:#c8d7a8;
+  --f-key:"Roboto Condensed","Arial Narrow","Helvetica Neue",Roboto,Arial,sans-serif;
+  --f-mark:"Arial Black","Roboto Black",Roboto,Arial,sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%;margin:0;overflow:hidden;overscroll-behavior:none;background:var(--room);color:var(--ink);touch-action:none}
+.stage{
+  position:fixed;
+  inset:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);
+  overflow:hidden;
+  background:
+    radial-gradient(42% 36% at 50% 38%,rgba(52,56,59,.55) 0%,rgba(52,56,59,0) 100%),
+    radial-gradient(95% 75% at 50% 55%,#161819 0%,var(--room) 78%);
+  user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:none;
+  font-family:var(--f-key);
+}
+
+/* ---------- handset ---------- */
+.phone{
+  position:absolute;left:50%;top:50%;
+  width:300px;height:580px;
+  transform:translate(-50%,-50%) scale(var(--s,1));
+}
+.shell{position:absolute;left:0;top:0;width:300px;height:580px;overflow:visible;pointer-events:none}
+
+/* ---------- LCD assembly: bezel (SVG) > protective window > LCD panel ---------- */
+.bezel{position:absolute;left:24px;top:60px;width:252px;height:160px}
+.glass{
+  position:absolute;left:8px;top:10px;width:236px;height:139px;
+  border-radius:1px;background:var(--lcd-lo);
+  box-shadow:0 0 0 1px #050606;
+}
+.glass canvas{position:absolute;left:4px;top:4px;width:228px;height:130.29px;display:block}
+.glass::after{ /* the panel sits deep below the bezel lip: light from the upper left leaves its top and left edges in shadow */
+  content:"";position:absolute;inset:0;pointer-events:none;
+  box-shadow:inset 6px 8px 10px -4px rgba(0,0,0,.52),inset -2px -2px 5px rgba(0,0,0,.2);
+}
+.window{ /* matte protective window in front of the panel */
+  position:absolute;left:3px;top:5px;width:246px;height:151px;border-radius:3px;pointer-events:none;
+  background:linear-gradient(168deg,rgba(255,255,255,.04) 0%,rgba(255,255,255,0) 26%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.08),
+    inset 0 0 0 1px rgba(255,255,255,.035),
+    inset 4px 6px 8px -5px rgba(0,0,0,.6);
+}
+
+/* ---------- keys: convex caps standing up out of fascia openings ---------- */
+.phone button{
+  font:inherit;color:var(--ink);border:0;padding:0;margin:0;
+  -webkit-tap-highlight-color:transparent;cursor:pointer;touch-action:none;
+  -webkit-user-select:none;user-select:none;
+}
+.key,.soft,.navi{
+  position:absolute;left:var(--x);top:var(--y);
+  transform:rotate(var(--r,0deg));
+  display:flex;align-items:center;justify-content:center;
+  background:
+    radial-gradient(80% 72% at 36% 20%,rgba(255,255,255,.17),rgba(255,255,255,0) 60%),
+    radial-gradient(120% 100% at 54% 118%,rgba(0,0,0,.36),rgba(0,0,0,0) 60%),
+    var(--key);
+  box-shadow:
+    inset 0 1px .5px rgba(255,255,255,.22),
+    inset 1px 0 1px rgba(255,255,255,.05),
+    inset 0 -2px 2px rgba(0,0,0,.34),
+    0 2.5px 0 #25272a,
+    0 3.5px 0 #121314,
+    .8px 5px 5px rgba(0,0,0,.6);
+  transition:transform 45ms ease-out,box-shadow 45ms ease-out,filter 45ms ease-out;
+}
+.key::after,.soft::after,.navi::after{ /* larger touch target, invisible */
+  content:"";position:absolute;inset:-4px -3px;border-radius:inherit;
+}
+.key.down,.soft.down,.navi.down{
+  transform:rotate(var(--r,0deg)) translateY(2.2px);
+  filter:brightness(.9);
+  box-shadow:
+    inset 0 1px .5px rgba(255,255,255,.12),
+    inset 0 -1px 1px rgba(0,0,0,.3),
+    0 .6px 0 #25272a,
+    0 1.2px 0 #121314,
+    .4px 1.5px 1.5px rgba(0,0,0,.6);
+}
+.phone button:focus{outline:none}
+.phone button:focus-visible{outline:2px solid var(--focus);outline-offset:3px}
+
+.key{width:76px;height:38px;border-radius:15px/18px}
+.key.lc{border-radius:22px 13px 13px 20px / 19px 15px 15px 19px}
+.key.rc{border-radius:13px 22px 20px 13px / 15px 19px 19px 15px}
+.key .lab{display:flex;align-items:baseline;gap:4px;position:relative;top:1px;text-shadow:0 -.5px 0 rgba(0,0,0,.35)}
+.key .n{font-size:19px;font-weight:600;line-height:1;letter-spacing:-.01em;font-style:normal}
+.key .l{font-size:8.5px;font-weight:500;letter-spacing:.08em;color:var(--ink-dim)}
+.key .dir{position:absolute;width:0;height:0;border:2.2px solid transparent}
+.key .dir.up{left:50%;top:4px;margin-left:-2.2px;border-top:0;border-bottom:2.6px solid var(--ink-faint)}
+.key .dir.down{left:50%;bottom:4px;margin-left:-2.2px;border-bottom:0;border-top:2.6px solid var(--ink-faint)}
+.key .dir.left{left:7px;top:50%;margin-top:-2.2px;border-left:0;border-right:2.6px solid var(--ink-faint)}
+.key .dir.right{right:7px;top:50%;margin-top:-2.2px;border-right:0;border-left:2.6px solid var(--ink-faint)}
+.key .nub{position:absolute;left:50%;bottom:5px;width:7px;height:2px;margin-left:-3.5px;border-radius:1px;background:rgba(255,255,255,.16);box-shadow:0 1px 0 rgba(0,0,0,.45)}
+
+.soft{width:58px;height:26px;border-radius:50%}
+.soft svg{display:block;width:12px;height:12px;opacity:.82}
+.soft .c{font-size:14px;font-weight:600;line-height:1}
+.navi{
+  width:112px;height:40px;border-radius:50%;
+  background:
+    radial-gradient(58% 70% at 40% 22%,rgba(255,255,255,.21),rgba(255,255,255,0) 62%),
+    radial-gradient(110% 100% at 52% 118%,rgba(0,0,0,.42),rgba(0,0,0,0) 62%),
+    var(--key-navi);
+}
+.navi .groove{width:40px;height:1.5px;border-radius:1px;background:rgba(0,0,0,.32);box-shadow:0 1px 0 rgba(255,255,255,.1)}
+
+.install{
+  position:fixed;z-index:5;
+  top:calc(env(safe-area-inset-top,0px) + 8px);right:calc(env(safe-area-inset-right,0px) + 10px);
+  font:600 12px/1 var(--f-key);letter-spacing:.06em;color:#c9ccc6;
+  background:rgba(40,43,46,.85);border:1px solid rgba(255,255,255,.12);border-radius:4px;
+  padding:7px 10px;cursor:pointer;-webkit-tap-highlight-color:transparent;
+}
+.install:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+@media (prefers-reduced-motion:reduce){.key,.soft,.navi{transition:none}}
+</style>
+
+<main class="stage" id="stage">
+  <div class="phone" id="phone" role="application" aria-label="Mokia mobile phone running Snake. Press 5 to start, 2 4 6 8 or arrow keys to steer.">
+    <svg class="shell" viewBox="0 0 300 580" aria-hidden="true" focusable="false">
+      <defs>
+        <path id="sh-body" d="M150 2C222 2 270 6 286 22C296 32 298 52 298 80L297 200C296 240 291 270 290 300C289 340 293 390 292 440C291 500 288 540 266 560C246 576 200 580 150 580C100 580 54 576 34 560C12 540 9 500 8 440C7 390 11 340 10 300C9 270 4 240 3 200L2 80C2 52 4 32 14 22C30 6 78 2 150 2Z"/>
+        <path id="sh-bez" d="M30 54H270L282 66V236L270 248Q150 268 30 248L18 236V66Z"/>
+        <clipPath id="sh-body-c"><use href="#sh-body"/></clipPath>
+        <clipPath id="sh-fas-c"><use href="#sh-body" transform="matrix(.962 0 0 .981 5.7 5.5)"/></clipPath>
+        <clipPath id="sh-bez-c"><use href="#sh-bez"/></clipPath>
+        <linearGradient id="g-side" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2d30"/><stop offset=".5" stop-color="#1c1e20"/><stop offset="1" stop-color="#0f1011"/></linearGradient>
+        <linearGradient id="g-curve" x1="0" x2="1"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset=".045" stop-color="#000" stop-opacity=".22"/><stop offset=".14" stop-color="#fff" stop-opacity=".045"/><stop offset=".4" stop-color="#fff" stop-opacity=".015"/><stop offset=".78" stop-color="#000" stop-opacity=".06"/><stop offset=".95" stop-color="#000" stop-opacity=".32"/><stop offset="1" stop-color="#000" stop-opacity=".62"/></linearGradient>
+        <linearGradient id="g-vert" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".08"/><stop offset=".25" stop-color="#fff" stop-opacity="0"/><stop offset=".8" stop-color="#000" stop-opacity=".08"/><stop offset="1" stop-color="#000" stop-opacity=".32"/></linearGradient>
+        <radialGradient id="g-key" cx=".28" cy=".1" r=".75"><stop offset="0" stop-color="#fff" stop-opacity=".07"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+        <linearGradient id="g-rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".3"/><stop offset=".35" stop-color="#fff" stop-opacity=".08"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/></linearGradient>
+        <linearGradient id="g-bez" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#202224"/><stop offset=".55" stop-color="#17181a"/><stop offset="1" stop-color="#1d1f21"/></linearGradient>
+        <linearGradient id="g-bevel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".75"/><stop offset=".5" stop-color="#000" stop-opacity=".35"/><stop offset="1" stop-color="#fff" stop-opacity=".1"/></linearGradient>
+        <pattern id="p-holes" width="5.4" height="4.2" patternUnits="userSpaceOnUse"><circle cx="2.7" cy="2.1" r="1.15" fill="#000"/></pattern>
+        <filter id="f-grain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="1.2" numOctaves="2" seed="11" stitchTiles="stitch"/><feColorMatrix values="1 0 0 0 0  1 0 0 0 0  1 0 0 0 0  0 0 0 0 .045"/></filter>
+        <filter id="f-cast" x="-40%" y="-20%" width="180%" height="150%"><feGaussianBlur stdDeviation="16"/></filter>
+        <filter id="f-contact" x="-20%" y="-10%" width="140%" height="130%"><feGaussianBlur stdDeviation="4"/></filter>
+        <filter id="f-b1" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="1.3"/></filter>
+        <filter id="f-b3" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="3"/></filter>
+      </defs>
+
+      <!-- cast and contact shadows on the surface behind the phone -->
+      <use href="#sh-body" fill="#000" opacity=".7" filter="url(#f-cast)" transform="translate(12 26)"/>
+      <use href="#sh-body" fill="#000" opacity=".75" filter="url(#f-contact)" transform="translate(4 10)"/>
+
+      <!-- side wall: the thickness of the back shell visible below and to the right -->
+      <use href="#sh-body" fill="url(#g-side)" transform="translate(3.2 7.5)"/>
+      <use href="#sh-body" fill="none" stroke="rgba(255,255,255,.07)" stroke-width=".7" transform="translate(3.2 7.5)"/>
+      <use href="#sh-body" fill="none" stroke="#08090a" stroke-width=".9" transform="translate(1.7 4)"/>
+      <use href="#sh-body" fill="none" stroke="rgba(255,255,255,.06)" stroke-width=".5" transform="translate(1.7 4.9)"/>
+
+      <!-- front shell -->
+      <use href="#sh-body" fill="#2c2f32"/>
+      <g clip-path="url(#sh-body-c)">
+        <rect width="300" height="580" fill="url(#g-curve)"/>
+        <rect width="300" height="580" fill="url(#g-vert)"/>
+      </g>
+      <use href="#sh-body" fill="none" stroke="url(#g-rim)" stroke-width="1.2"/>
+
+      <!-- front fascia: a separate moulding sitting on the shell -->
+      <use href="#sh-body" transform="translate(.6 1.8) matrix(.962 0 0 .981 5.7 5.5)" fill="#000" opacity=".6" filter="url(#f-b1)"/>
+      <use href="#sh-body" transform="matrix(.962 0 0 .981 5.7 5.5)" fill="#35383b"/>
+      <g clip-path="url(#sh-fas-c)">
+        <rect width="300" height="580" fill="url(#g-curve)" opacity=".7"/>
+        <rect width="300" height="580" fill="url(#g-vert)"/>
+        <rect width="300" height="580" fill="url(#g-key)"/>
+        <rect width="300" height="580" filter="url(#f-grain)"/>
+      </g>
+      <use href="#sh-body" transform="matrix(.962 0 0 .981 5.7 5.5)" fill="none" stroke="url(#g-rim)" stroke-width=".9"/>
+      <use href="#sh-body" transform="matrix(.962 0 0 .981 5.7 5.5)" fill="none" stroke="rgba(0,0,0,.5)" stroke-width=".6"/>
+
+      <!-- earpiece: recessed lens with drilled holes -->
+      <rect x="117" y="15.6" width="66" height="13" rx="6.5" fill="rgba(255,255,255,.07)"/>
+      <rect x="117" y="13.8" width="66" height="13" rx="6.5" fill="#141516"/>
+      <rect x="117" y="13.8" width="66" height="13" rx="6.5" fill="url(#p-holes)"/>
+      <rect x="117" y="13.8" width="66" height="13" rx="6.5" fill="none" stroke="#000" stroke-opacity=".7" stroke-width="2.2" filter="url(#f-b1)"/>
+
+      <!-- wordmark, pad-printed on the fascia -->
+      <text x="150" y="46.5" text-anchor="middle" font-family="'Arial Black', Roboto, Arial, sans-serif" font-weight="900" font-size="13.2" letter-spacing="2.2" fill="#000" fill-opacity=".45" transform="translate(0 .7)">MOKIA</text>
+      <text x="150" y="46.5" text-anchor="middle" font-family="'Arial Black', Roboto, Arial, sans-serif" font-weight="900" font-size="13.2" letter-spacing="2.2" fill="#cfd2cd" fill-opacity=".9">MOKIA</text>
+
+      <!-- LCD bezel: thick dark moulding sunk into the fascia -->
+      <use href="#sh-bez" fill="rgba(255,255,255,.09)" transform="translate(0 1.4)"/>
+      <use href="#sh-bez" fill="rgba(0,0,0,.6)" transform="translate(0 -1)"/>
+      <use href="#sh-bez" fill="url(#g-bez)"/>
+      <g clip-path="url(#sh-bez-c)"><use href="#sh-bez" fill="none" stroke="#000" stroke-width="9" opacity=".7" filter="url(#f-b3)" transform="translate(0 1.5)"/></g>
+      <use href="#sh-bez" fill="none" stroke="rgba(255,255,255,.05)" stroke-width=".8" transform="translate(0 .6)"/>
+      <!-- window opening with a sloped bevel down to the panel -->
+      <rect x="23" y="61" width="254" height="159" rx="6" fill="url(#g-bevel)"/>
+      <rect x="27" y="65" width="246" height="151" rx="3" fill="#060707"/>
+
+      <!-- navigation cluster openings -->
+      <ellipse cx="52" cy="276" rx="32.0" ry="16.0" fill="rgba(255,255,255,.075)" transform="translate(0 1.1) rotate(12 52 276)"/><ellipse cx="52" cy="276" rx="32.0" ry="16.0" fill="rgba(0,0,0,.55)" transform="translate(0 -.8) rotate(12 52 276)"/><ellipse cx="52" cy="276" rx="32.0" ry="16.0" fill="#0b0c0d" transform="rotate(12 52 276)"/><ellipse cx="150" cy="285" rx="59.5" ry="23.5" fill="rgba(255,255,255,.075)" transform="translate(0 1.1) rotate(0 150 285)"/><ellipse cx="150" cy="285" rx="59.5" ry="23.5" fill="rgba(0,0,0,.55)" transform="translate(0 -.8) rotate(0 150 285)"/><ellipse cx="150" cy="285" rx="59.5" ry="23.5" fill="#0b0c0d" transform="rotate(0 150 285)"/><ellipse cx="248" cy="276" rx="32.0" ry="16.0" fill="rgba(255,255,255,.075)" transform="translate(0 1.1) rotate(-12 248 276)"/><ellipse cx="248" cy="276" rx="32.0" ry="16.0" fill="rgba(0,0,0,.55)" transform="translate(0 -.8) rotate(-12 248 276)"/><ellipse cx="248" cy="276" rx="32.0" ry="16.0" fill="#0b0c0d" transform="rotate(-12 248 276)"/>
+
+      <!-- keypad openings -->
+      <rect x="26.40" y="322.40" width="81.20" height="43.20" rx="21.60" ry="21.60" fill="rgba(255,255,255,.075)" transform="translate(0 1.1) rotate(4 67 344)"/><rect x="26.40" y="322.40" width="81.20" height="43.20" rx="21.60" ry="21.60" fill="rgba(0,0,0,.55)" transform="translate(0 -.8) rotate(4 67 344)"/><rect x="26.40" y="322.40" width="81.20" height="43.20" rx="21.60" ry="21.60" fill="#0b0c0d" transform="rotate(4 67 344)"/><rect x="109.40" y="327.40" width="81.20" height="43.20" rx="19.60" ry="21.60" fill="rgba(255,255,255,.075)" transform="translate(0 1.1)"/><rect x="109.40" y="327.40" width="81.20" height="43.20" rx="19.60" ry="21.60" fill="rgba(0,0,0,.55)" transform="translate(0 -.8)"/><rect x="109.40" y="327.40" width="81.20" height="43.20" rx="19.60" ry="21.60" fill="#0b0c0d"/><rect x="192.40" y="322.40" width="81.20" height="43.20" rx="21.60" ry="21.60" fill="rgba(255,255,255,.075)" transform="translate(0 1.1) rotate(-4 233 344)"/><rect x="192.40" y="322.40" width="81.20" height="43.20" rx="21.60" ry="21.60" fill="rgba(0,0,0,.55)" transform="translate(0 -.8) rotate(-4 233 344)"/><rect x="192.40" y="322.40" width="81.20" height="43.20" rx="21.60" ry="21.60" fill="#0b0c0d" transform="rotate(-4 233 344)"/><rect x="26.40" y="370.40" width="81.20" height="43.20" rx="21.60" ry="21.60" fill="rgba(255,255,255,.075)" transform="translate(0 1.1) rotate(4 67 392)"/><rect x="26.40" y="370.40" width="81.20" height="43.20" rx="21.60" ry="21.60" fill="rgba(0,0,0,.55)" transform="translate(0 -.8) rotate(4 67 392)"/><rect x="26.40" y="370.40" width="81.20" height="43.20" rx="21.60" ry="21.60" fill="#0b0c0d" transform="rotate(4 67 392)"/><rect x="109.40" y="375.40" width="81.20" height="43.20" rx="19.60" ry="21.60" fill="rgba(255,255,255,.075)" transform="translate(0 1.1)"/><rect x="109.40" y="375.40" width="81.20" height="43.20" rx="19.60" ry="21.60" fill="rgba(0,0,0,.55)" transform="translate(0 -.8)"/><rect x="109.40" y="375.40" width="81.20" height="43.20" rx="19.60" ry="21.60" fill="#0b0c0d"/><rect x="192.40" y="370.40" width="81.20" height="43.20" rx="21.60" ry="21.60" fill="rgba(255,255,255,.075)" transform="translate(0 1.1) rotate(-4 233 392)"/><rect x="192.40" y="370.40" width="81.20" height="43.20" rx="21.60" ry="21.60" fill="rgba(0,0,0,.55)" transform="translate(0 -.8) rotate(-4 233 392)"/><rect x="192.40" y="370.40" width="81.20" height="43.20" rx="21.60" ry="21.60" fill="#0b0c0d" transform="rotate(-4 233 392)"/><rect x="26.40" y="418.40" width="81.20" height="43.20" rx="21.60" ry="21.60" fill="rgba(255,255,255,.075)" transform="translate(0 1.1) rotate(4 67 440)"/><rect x="26.40" y="418.40" width="81.20" height="43.20" rx="21.60" ry="21.60" fill="rgba(0,0,0,.55)" transform="translate(0 -.8) rotate(4 67 440)"/><rect x="26.40" y="418.40" width="81.20" height="43.20" rx="21.60" ry="21.60" fill="#0b0c0d" transform="rotate(4 67 440)"/><rect x="109.40" y="423.40" width="81.20" height="43.20" rx="19.60" ry="21.60" fill="rgba(255,255,255,.075)" transform="translate(0 1.1)"/><rect x="109.40" y="423.40" width="81.20" height="43.20" rx="19.60" ry="21.60" fill="rgba(0,0,0,.55)" transform="translate(0 -.8)"/><rect x="109.40" y="423.40" width="81.20" height="43.20" rx="19.60" ry="21.60" fill="#0b0c0d"/><rect x="192.40" y="418.40" width="81.20" height="43.20" rx="21.60" ry="21.60" fill="rgba(255,255,255,.075)" transform="translate(0 1.1) rotate(-4 233 440)"/><rect x="192.40" y="418.40" width="81.20" height="43.20" rx="21.60" ry="21.60" fill="rgba(0,0,0,.55)" transform="translate(0 -.8) rotate(-4 233 440)"/><rect x="192.40" y="418.40" width="81.20" height="43.20" rx="21.60" ry="21.60" fill="#0b0c0d" transform="rotate(-4 233 440)"/><rect x="26.40" y="466.40" width="81.20" height="43.20" rx="21.60" ry="21.60" fill="rgba(255,255,255,.075)" transform="translate(0 1.1) rotate(4 67 488)"/><rect x="26.40" y="466.40" width="81.20" height="43.20" rx="21.60" ry="21.60" fill="rgba(0,0,0,.55)" transform="translate(0 -.8) rotate(4 67 488)"/><rect x="26.40" y="466.40" width="81.20" height="43.20" rx="21.60" ry="21.60" fill="#0b0c0d" transform="rotate(4 67 488)"/><rect x="109.40" y="471.40" width="81.20" height="43.20" rx="19.60" ry="21.60" fill="rgba(255,255,255,.075)" transform="translate(0 1.1)"/><rect x="109.40" y="471.40" width="81.20" height="43.20" rx="19.60" ry="21.60" fill="rgba(0,0,0,.55)" transform="translate(0 -.8)"/><rect x="109.40" y="471.40" width="81.20" height="43.20" rx="19.60" ry="21.60" fill="#0b0c0d"/><rect x="192.40" y="466.40" width="81.20" height="43.20" rx="21.60" ry="21.60" fill="rgba(255,255,255,.075)" transform="translate(0 1.1) rotate(-4 233 488)"/><rect x="192.40" y="466.40" width="81.20" height="43.20" rx="21.60" ry="21.60" fill="rgba(0,0,0,.55)" transform="translate(0 -.8) rotate(-4 233 488)"/><rect x="192.40" y="466.40" width="81.20" height="43.20" rx="21.60" ry="21.60" fill="#0b0c0d" transform="rotate(-4 233 488)"/>
+
+      <!-- microphone -->
+      <circle cx="150" cy="551" r="3" fill="rgba(255,255,255,.07)" transform="translate(0 .9)"/>
+      <circle cx="150" cy="551" r="3" fill="#070808"/>
+    </svg>
+
+    <div class="bezel">
+      <div class="glass">
+        <canvas id="lcd" role="img" aria-label="Snake. Press 5 to start."></canvas>
+      </div>
+      <div class="window" aria-hidden="true"></div>
+    </div>
+
+    <button type="button" id="k-snd" class="soft" data-act="sound" style="--x:23px;--y:263px;--r:12deg" aria-label="Sound" aria-pressed="true"><svg viewBox="0 0 16 16" aria-hidden="true"><ellipse cx="5.6" cy="12.2" rx="2.7" ry="2.1" fill="currentColor"/><path d="M7.4 12.2V2.4h1.2l4.4 1.8v2.2L8.6 4.8v7.4z" fill="currentColor"/></svg></button>
+    <button type="button" id="k-ok" class="navi" data-act="ok" style="--x:94px;--y:265px" aria-label="OK, start or resume"><span class="groove" aria-hidden="true"></span></button>
+    <button type="button" id="k-c" class="soft" data-act="pause" style="--x:219px;--y:263px;--r:-12deg" aria-label="C, pause"><span class="c" aria-hidden="true">C</span></button>
+
+    <button type="button" class="key lc" tabindex="-1" style="--x:29px;--y:325px;--r:4deg" aria-label="1"><span class="lab"><i class="n">1</i></span></button>
+    <button type="button" class="key" id="k2" data-act="up" style="--x:112px;--y:330px" aria-label="2, up"><i class="dir up"></i><span class="lab"><i class="n">2</i><span class="l">abc</span></span></button>
+    <button type="button" class="key rc" tabindex="-1" style="--x:195px;--y:325px;--r:-4deg" aria-label="3"><span class="lab"><i class="n">3</i><span class="l">def</span></span></button>
+
+    <button type="button" class="key lc" id="k4" data-act="left" style="--x:29px;--y:373px;--r:4deg" aria-label="4, left"><i class="dir left"></i><span class="lab"><i class="n">4</i><span class="l">ghi</span></span></button>
+    <button type="button" class="key" id="k5" data-act="ok" style="--x:112px;--y:378px" aria-label="5, start"><span class="lab"><i class="n">5</i><span class="l">jkl</span></span><i class="nub"></i></button>
+    <button type="button" class="key rc" id="k6" data-act="right" style="--x:195px;--y:373px;--r:-4deg" aria-label="6, right"><i class="dir right"></i><span class="lab"><i class="n">6</i><span class="l">mno</span></span></button>
+
+    <button type="button" class="key lc" tabindex="-1" style="--x:29px;--y:421px;--r:4deg" aria-label="7"><span class="lab"><i class="n">7</i><span class="l">pqrs</span></span></button>
+    <button type="button" class="key" id="k8" data-act="down" style="--x:112px;--y:426px" aria-label="8, down"><i class="dir down"></i><span class="lab"><i class="n">8</i><span class="l">tuv</span></span></button>
+    <button type="button" class="key rc" tabindex="-1" style="--x:195px;--y:421px;--r:-4deg" aria-label="9"><span class="lab"><i class="n">9</i><span class="l">wxyz</span></span></button>
+
+    <button type="button" class="key lc" tabindex="-1" style="--x:29px;--y:469px;--r:4deg" aria-label="Star"><span class="lab"><i class="n">*</i><span class="l">+</span></span></button>
+    <button type="button" class="key" tabindex="-1" style="--x:112px;--y:474px" aria-label="0"><span class="lab"><i class="n">0</i></span></button>
+    <button type="button" class="key rc" tabindex="-1" style="--x:195px;--y:469px;--r:-4deg" aria-label="Hash"><span class="lab"><i class="n">#</i></span></button>
+
+  </div>
+  <div id="live" class="sr" aria-live="polite"></div>
+  <button type="button" id="install" class="install" hidden>Install</button>
+</main>
+
+<script>
+(() => {
+'use strict';
+
+/* =========================================================
+   Constants
+   ========================================================= */
+const LCD_W = 84, LCD_H = 48;          // classic monochrome LCD resolution
+const COLS = 27, ROWS = 13;            // playfield grid (3 LCD px per cell)
+const OX = 2, OY = 8;                  // playfield origin in LCD pixels
+const BASE_MS = 165, STEP_MS = 2.5, MIN_MS = 75;
+const DIE_MS = 1050, BLINK_MS = 150;
+const START_LEN = 4;
+const PHONE_W = 308, PHONE_H = 598;   // handset plus its visible side wall
+const BEST_KEY = 'kaiku-snake-best', MUTE_KEY = 'kaiku-snake-muted';
+const DIRS = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] };
+const OPP  = { up:'down', down:'up', left:'right', right:'left' };
+const BOOT_MS = 1100, INTRO_MS = 1000, DEMO_MS = 150, TITLE_IDLE_MS = 15000, OVER_IDLE_MS = 12000;
+const FADE_MS = 110;                   // liquid-crystal switch-off persistence
+
+const store = {
+  get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+  set(k,v){ try { localStorage.setItem(k, String(v)); } catch(e){} }
+};
+const reduceMotion = (() => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch(e){ return false; } })();
+
+/* =========================================================
+   Game model (no DOM access)
+   ========================================================= */
+const G = {
+  mode: 'boot',             // boot | intro | demo | title | playing | paused | dying | over
+  snake: [],                // tail first, head last
+  occ: new Uint8Array(COLS * ROWS),
+  dir: 'right',
+  queue: [],                // buffered turns, max 2
+  food: null,
+  score: 0,
+  interval: BASE_MS,
+  best: Number(store.get(BEST_KEY)) || 0,
+  newBest: false,
+  won: false,
+  modeAt: 0,
+  lastStep: 0
+};
+const cell = (x, y) => y * COLS + x;
+
+function newGame(now){
+  G.occ.fill(0);
+  G.snake = [];
+  const y = Math.floor(ROWS / 2);
+  for (let x = 3; x < 3 + START_LEN; x++){ G.snake.push({x, y}); G.occ[cell(x, y)] = 1; }
+  G.dir = 'right';
+  G.queue.length = 0;
+  G.score = 0;
+  G.interval = BASE_MS;
+  G.won = false;
+  G.newBest = false;
+  G.food = spawnFood();
+  G.mode = 'playing';
+  G.modeAt = now;
+  G.lastStep = now;
+}
+
+function spawnFood(){
+  const free = [];
+  for (let i = 0; i < G.occ.length; i++) if (!G.occ[i]) free.push(i);
+  if (!free.length) return null;
+  const i = free[Math.floor(Math.random() * free.length)];
+  return { x: i % COLS, y: (i / COLS) | 0 };
+}
+
+/* A turn is checked against the LAST BUFFERED direction, so two quick presses
+   between ticks (e.g. up then left while moving right) are legal, while a direct
+   or buffered reversal is dropped. */
+function queueTurn(d){
+  if (G.mode !== 'playing') return;
+  const last = G.queue.length ? G.queue[G.queue.length - 1] : G.dir;
+  if (d === last || d === OPP[last] || G.queue.length >= 2) return;
+  G.queue.push(d);
+}
+
+function endGame(now, won){
+  G.mode = 'dying';
+  G.won = won;
+  G.modeAt = now;
+  G.queue.length = 0;
+  if (G.score > G.best){ G.best = G.score; G.newBest = true; store.set(BEST_KEY, G.best); }
+}
+
+/* One discrete grid move. Returns 'eat' | 'die' | 'win' | '' */
+function step(now){
+  if (G.queue.length) G.dir = G.queue.shift();
+  const [dx, dy] = DIRS[G.dir];
+  const head = G.snake[G.snake.length - 1];
+  const nx = head.x + dx, ny = head.y + dy;
+
+  if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS){ endGame(now, false); return 'die'; }
+
+  const ni = cell(nx, ny);
+  const eating = !!G.food && G.food.x === nx && G.food.y === ny;
+  const tail = G.snake[0];
+  const ti = cell(tail.x, tail.y);
+  // The tail cell is vacated this tick unless the snake grows, so entering it is legal.
+  if (G.occ[ni] && !(!eating && ni === ti)){ endGame(now, false); return 'die'; }
+
+  if (!eating){ G.snake.shift(); G.occ[ti] = 0; }
+  G.snake.push({x: nx, y: ny});
+  G.occ[ni] = 1;
+
+  if (eating){
+    G.score += 1;
+    G.interval = Math.max(MIN_MS, BASE_MS - G.score * STEP_MS);
+    G.food = spawnFood();
+    if (!G.food){ endGame(now, true); return 'win'; }
+    return 'eat';
+  }
+  return '';
+}
+
+/* =========================================================
+   Attract-mode demo: a scripted snake with its own state.
+   It never touches G, so it cannot change score, top score or the game.
+   ========================================================= */
+const DEMO_PATH = [['right',7],['up',5],['right',8],['down',6],['right',4],['up',3]];
+const DEMO_FOOD = [{x:12,y:6},{x:20,y:8},{x:6,y:3}];   // all on or clear of the safe route
+const D = { snake: [], food: null, score: 0, moves: [], i: 0, fi: 0, lastStep: 0 };
+function demoReset(now){
+  D.snake = [];
+  for (let x = 2; x < 2 + START_LEN; x++) D.snake.push({x, y: 9});
+  D.moves = [];
+  for (const [d, n] of DEMO_PATH) for (let k = 0; k < n; k++) D.moves.push(d);
+  D.i = 0; D.fi = 0; D.food = DEMO_FOOD[0]; D.score = 0; D.lastStep = now;
+}
+function demoStep(){
+  if (D.i >= D.moves.length) return false;
+  const [dx, dy] = DIRS[D.moves[D.i++]];
+  const h = D.snake[D.snake.length - 1];
+  const n = { x: h.x + dx, y: h.y + dy };
+  const eat = !!D.food && D.food.x === n.x && D.food.y === n.y;
+  D.snake.push(n);
+  if (eat){ D.score += 1; D.fi += 1; D.food = DEMO_FOOD[D.fi] || null; }
+  else D.snake.shift();
+  return true;
+}
+
+/* =========================================================
+   LCD frame buffer + pixel font
+   ========================================================= */
+const fb = new Uint8Array(LCD_W * LCD_H);
+function rect(x, y, w, h, v = 1){
+  for (let j = y; j < y + h; j++){
+    if (j < 0 || j >= LCD_H) continue;
+    for (let i = x; i < x + w; i++){ if (i >= 0 && i < LCD_W) fb[j * LCD_W + i] = v; }
+  }
+}
+function outline(x, y, w, h){ rect(x, y, w, 1); rect(x, y + h - 1, w, 1); rect(x, y, 1, h); rect(x + w - 1, y, 1, h); }
+
+const FONT = {
+  A:['010','101','111','101','101'], C:['011','100','100','100','011'],
+  E:['111','100','110','100','111'], G:['011','100','101','101','011'],
+  I:['111','010','010','010','111'], K:['101','101','110','101','101'],
+  M:['10001','11011','10101','10001','10001'], N:['1001','1101','1011','1001','1001'],
+  O:['010','101','101','101','010'], P:['110','101','110','100','100'],
+  R:['110','101','110','101','101'], S:['011','100','010','001','110'],
+  T:['111','010','010','010','010'], U:['101','101','101','101','111'],
+  V:['101','101','101','101','010'], W:['10001','10001','10101','11011','10001'],
+  Y:['101','101','010','010','010'],
+  '0':['111','101','101','101','111'], '1':['010','110','010','010','111'],
+  '2':['110','001','010','100','111'], '3':['110','001','010','001','110'],
+  '4':['101','101','111','001','001'], '5':['111','100','110','001','110'],
+  '6':['011','100','111','101','111'], '7':['111','001','010','010','010'],
+  '8':['111','101','111','101','111'], '9':['111','101','111','001','110'],
+  '!':['1','1','1','0','1'], ' ':['00','00','00','00','00']
+};
+function textWidth(str, s = 1){
+  let w = 0;
+  for (const ch of str){ const g = FONT[ch] || FONT[' ']; w += (g[0].length + 1) * s; }
+  return Math.max(0, w - s);
+}
+function text(str, x, y, s = 1){
+  for (const ch of str){
+    const g = FONT[ch] || FONT[' '];
+    for (let r = 0; r < 5; r++) for (let c = 0; c < g[r].length; c++) if (g[r][c] === '1') rect(x + c * s, y + r * s, s, s);
+    x += (g[0].length + 1) * s;
+  }
+}
+const center = (str, y, s = 1) => text(str, Math.round((LCD_W - textWidth(str, s)) / 2), y, s);
+const pad4 = n => String(n).padStart(4, '0');
+
+/* ---------- screen composition ---------- */
+function drawSpeaker(x, y, on){
+  const body = ['001','011','111','011','001'];
+  for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++) if (body[r][c] === '1') rect(x + c, y + r, 1, 1);
+  if (on){ rect(x + 4, y + 1, 1, 3); rect(x + 5, y, 1, 1); rect(x + 5, y + 4, 1, 1); rect(x + 6, y + 1, 1, 3); }
+  else { rect(x + 4, y + 1, 1, 1); rect(x + 6, y + 1, 1, 1); rect(x + 5, y + 2, 1, 1); rect(x + 4, y + 3, 1, 1); rect(x + 6, y + 3, 1, 1); }
+}
+function drawStatusBars(){
+  // signal (left) and battery (right), the way idle screens of the era showed them
+  for (let i = 0; i < 4; i++){ const w = i + 1, y = 44 - i * 4; rect(0, y, w, 2); rect(LCD_W - w, y, w, 2); }
+  const ant = ['101','010','010','010','010'];
+  for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++) if (ant[r][c] === '1') rect(c, 24 + r, 1, 1);
+  const bat = ['010','111','101','101','111'];
+  for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++) if (bat[r][c] === '1') rect(LCD_W - 3 + c, 24 + r, 1, 1);
+}
+function drawFood(f){
+  const x = OX + f.x * 3, y = OY + f.y * 3;
+  rect(x + 1, y, 1, 1); rect(x, y + 1, 1, 1); rect(x + 2, y + 1, 1, 1); rect(x + 1, y + 2, 1, 1);
+}
+function drawSnake(s = G.snake){
+  for (let i = 0; i < s.length; i++){
+    const c = s[i];
+    rect(OX + c.x * 3, OY + c.y * 3, 2, 2);
+    if (i > 0){
+      const p = s[i - 1], gx = Math.min(p.x, c.x), gy = Math.min(p.y, c.y);
+      if (p.y === c.y) rect(OX + gx * 3 + 2, OY + gy * 3, 1, 2);
+      else rect(OX + gx * 3, OY + gy * 3 + 2, 2, 1);
+    }
+  }
+}
+function drawPlay(showSnake, S = G){
+  text(pad4(S.score), 1, 0);
+  drawSpeaker(LCD_W - 7, 0, !muted);
+  outline(0, 6, LCD_W, LCD_H - 6);
+  if (S.food) drawFood(S.food);
+  if (showSnake) drawSnake(S.snake);
+}
+function drawPause(){
+  const w = 29, h = 11, x = Math.round((LCD_W - w) / 2), y = 20;
+  rect(x, y, w, h, 0);
+  outline(x, y, w, h);
+  center('PAUSE', y + 3);
+}
+function drawEmblem(){ // a bent snake approaching food
+  rect(30, 19, 11, 2); rect(39, 16, 2, 5); rect(39, 16, 9, 2);
+  rect(52, 16, 1, 1); rect(51, 17, 1, 1); rect(53, 17, 1, 1); rect(52, 18, 1, 1);
+}
+function drawBoot(){ center('MOKIA', 16, 3); }
+function drawIntro(){ center('SNAKE', 4, 2); drawEmblem(); }
+function drawTitle(){
+  drawStatusBars();
+  center('SNAKE', 4, 2);
+  drawEmblem();
+  center('PRESS 5', 26);
+  if (G.best > 0) center('TOP ' + pad4(G.best), 36);
+}
+function drawOver(){
+  center(G.won ? 'YOU WIN' : 'GAME OVER', 4, 2);
+  center('SCORE ' + pad4(G.score), 20);
+  center(G.newBest ? 'NEW TOP!' : 'TOP ' + pad4(G.best), 28);
+  center('PRESS 5', 38);
+}
+function compose(now){
+  fb.fill(0);
+  switch (G.mode){
+    case 'boot':    drawBoot(); break;
+    case 'intro':   drawIntro(); break;
+    case 'demo':    drawPlay(true, D); break;
+    case 'title':   drawTitle(); break;
+    case 'playing': drawPlay(true); break;
+    case 'paused':  drawPlay(true); drawPause(); break;
+    case 'dying': {
+      const ph = Math.floor((now - G.modeAt) / BLINK_MS);
+      drawPlay(reduceMotion || ph % 2 === 1);
+      break;
+    }
+    case 'over':    drawOver(); break;
+  }
+}
+
+/* =========================================================
+   LCD painter (frame buffer -> canvas)
+   ========================================================= */
+const canvas = document.getElementById('lcd');
+const ctx = canvas.getContext('2d', { alpha: false });
+const css = getComputedStyle(document.documentElement);
+const tok = (n, d) => (css.getPropertyValue(n) || '').trim() || d;
+const C_HI = tok('--lcd-hi', '#b7c59d'), C_LO = tok('--lcd-lo', '#9dab86'), C_INK = tok('--lcd-ink', '#27321f');
+let cw = 0, ch = 0, X = [], Y = [], gap = 0, shadowOff = 1, backplane = null;
+
+function sizeCanvas(){
+  const r = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.max(LCD_W, Math.round(r.width * dpr));
+  const h = Math.max(LCD_H, Math.round(w * LCD_H / LCD_W));
+  if (w === cw && h === ch) return;
+  cw = w; ch = h;
+  canvas.width = cw; canvas.height = ch;
+  X = []; Y = [];
+  for (let i = 0; i <= LCD_W; i++) X.push(Math.round(i * cw / LCD_W));
+  for (let j = 0; j <= LCD_H; j++) Y.push(Math.round(j * ch / LCD_H));
+  const p = cw / LCD_W;
+  gap = p < 2.6 ? 0 : Math.max(1, Math.round(p * 0.14));
+  shadowOff = Math.max(1, Math.round(p * 0.16));
+  buildBackplane();
+  dirty = true;
+}
+function buildBackplane(){
+  backplane = document.createElement('canvas');
+  backplane.width = cw; backplane.height = ch;
+  const b = backplane.getContext('2d');
+  const g = b.createRadialGradient(cw * .44, ch * .38, 0, cw * .5, ch * .5, cw * .62);
+  g.addColorStop(0, C_HI); g.addColorStop(1, C_LO);
+  b.fillStyle = g; b.fillRect(0, 0, cw, ch);
+  // uneven illumination of a cheap panel: a faint darker band and two soft blotches
+  const v = b.createLinearGradient(0, 0, 0, ch);
+  v.addColorStop(0, 'rgba(40,52,30,0.07)'); v.addColorStop(.35, 'rgba(40,52,30,0)'); v.addColorStop(1, 'rgba(40,52,30,0.05)');
+  b.fillStyle = v; b.fillRect(0, 0, cw, ch);
+  for (const [px, py, pr, a] of [[.22, .7, .35, .045], [.78, .3, .3, .035]]){
+    const bl = b.createRadialGradient(cw * px, ch * py, 0, cw * px, ch * py, cw * pr);
+    bl.addColorStop(0, 'rgba(40,52,30,' + a + ')'); bl.addColorStop(1, 'rgba(40,52,30,0)');
+    b.fillStyle = bl; b.fillRect(0, 0, cw, ch);
+  }
+  if (gap > 0){ // faint ghost of the unlit pixel matrix
+    b.fillStyle = 'rgba(36,50,28,0.11)';
+    for (let y = 0; y < LCD_H; y++) for (let x = 0; x < LCD_W; x++)
+      b.fillRect(X[x], Y[y], X[x + 1] - X[x] - gap, Y[y + 1] - Y[y] - gap);
+  }
+}
+// Per-cell opacity varies very slightly, like real liquid-crystal cells (fixed pattern, no flicker).
+const cellAlpha = new Float32Array(LCD_W * LCD_H);
+{ let seed = 1234567; for (let i = 0; i < cellAlpha.length; i++){ seed = (seed * 1103515245 + 12345) >>> 0; cellAlpha[i] = 0.85 + ((seed >>> 8) % 1000) / 1000 * 0.07; } }
+const glow = new Float32Array(LCD_W * LCD_H);   // persistence: cells switch off over ~FADE_MS
+let lastPaint = 0, fading = false;
+function paint(now){
+  if (!backplane) return;
+  const dt = lastPaint ? Math.min(200, Math.max(0, now - lastPaint)) : 1000;
+  lastPaint = now;
+  const decay = reduceMotion ? 1 : dt / FADE_MS;
+  fading = false;
+  for (let i = 0; i < glow.length; i++){
+    if (fb[i]) glow[i] = 1;
+    else if (glow[i] > 0){ glow[i] = Math.max(0, glow[i] - decay); if (glow[i] > 0) fading = true; }
+  }
+  ctx.drawImage(backplane, 0, 0);
+  const cellW = X[1] - X[0];
+  // soft shadow cast by each liquid-crystal cell onto the backplane
+  ctx.fillStyle = 'rgba(24,34,18,1)';
+  for (let y = 0; y < LCD_H; y++) for (let x = 0; x < LCD_W; x++){
+    const gl = glow[y * LCD_W + x]; if (!gl) continue;
+    ctx.globalAlpha = 0.15 * gl;
+    ctx.fillRect(X[x] + shadowOff, Y[y] + shadowOff, X[x + 1] - X[x] - gap, Y[y + 1] - Y[y] - gap);
+  }
+  // the cells themselves: slightly translucent ink, so the backplane shading shows through
+  ctx.fillStyle = C_INK;
+  for (let y = 0; y < LCD_H; y++) for (let x = 0; x < LCD_W; x++){
+    const i = y * LCD_W + x, gl = glow[i]; if (!gl) continue;
+    ctx.globalAlpha = cellAlpha[i] * gl;
+    ctx.fillRect(X[x], Y[y], X[x + 1] - X[x] - gap, Y[y + 1] - Y[y] - gap);
+  }
+  // one device pixel of lighter edge on each cell, only where cells are large enough to show it
+  if (cellW >= 5){
+    ctx.fillStyle = '#ffffff';
+    for (let y = 0; y < LCD_H; y++) for (let x = 0; x < LCD_W; x++){
+      const gl = glow[y * LCD_W + x]; if (!gl) continue;
+      ctx.globalAlpha = 0.06 * gl;
+      ctx.fillRect(X[x], Y[y], X[x + 1] - X[x] - gap, 1);
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* =========================================================
+   Sound: short square-wave beeps, generated on the fly
+   ========================================================= */
+let actx = null, master = null;
+let muted = store.get(MUTE_KEY) === '1';
+function audio(){
+  if (!actx){
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    try { actx = new AC(); master = actx.createGain(); master.gain.value = 0.5; master.connect(actx.destination); }
+    catch(e){ actx = null; return null; }
+  }
+  if (actx.state === 'suspended') actx.resume().catch(() => {});
+  return actx;
+}
+function unlockAudio(){ if (actx && actx.state === 'suspended') actx.resume().catch(() => {}); }
+function tone(f, t, d, v = 0.07){
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = 'square';
+  o.frequency.setValueAtTime(f, t);
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(v, t + 0.004);
+  g.gain.setValueAtTime(v, t + Math.max(0.005, d - 0.012));
+  g.gain.linearRampToValueAtTime(0, t + d);
+  o.connect(g); g.connect(master);
+  o.start(t); o.stop(t + d + 0.02);
+}
+function sfx(name){
+  if (muted) return;
+  const a = audio(); if (!a) return;
+  const t = a.currentTime + 0.01;
+  switch (name){
+    case 'start': tone(1047, t, .07); tone(1568, t + .09, .1); break;
+    case 'boot':  tone(1319, t, .06, .045); tone(1760, t + .08, .09, .045); break;
+    case 'eat':   tone(2093, t, .035, .05); break;
+    case 'over':  tone(784, t, .12); tone(587, t + .14, .12); tone(392, t + .28, .24); break;
+    case 'win':   tone(1047, t, .08); tone(1319, t + .1, .08); tone(1568, t + .2, .08); tone(2093, t + .3, .2); break;
+    case 'tick':  tone(1319, t, .05, .05); break;
+  }
+}
+
+/* =========================================================
+   Controller
+   ========================================================= */
+let dirty = true, lastPhase = -1, lastLabel = '';
+const live = document.getElementById('live');
+const sndBtn = document.getElementById('k-snd');
+function say(msg){ live.textContent = ''; setTimeout(() => { live.textContent = msg; }, 30); }
+
+function pause(){ if (G.mode !== 'playing') return; G.mode = 'paused'; G.queue.length = 0; dirty = true; say('Paused. Press 5 or C to continue.'); }
+function resume(now){ if (G.mode !== 'paused') return; G.mode = 'playing'; G.lastStep = now; dirty = true; say('Resumed.'); }
+function setMuted(m){
+  muted = m;
+  store.set(MUTE_KEY, m ? '1' : '0');
+  sndBtn.setAttribute('aria-pressed', String(!m));
+  if (!m) sfx('tick');
+  dirty = true;
+  say(m ? 'Sound off.' : 'Sound on.');
+}
+
+function setMode(m, now){ G.mode = m; G.modeAt = now; dirty = true; }
+const IDLE_MODES = { boot:1, intro:1, demo:1, title:1, over:1 };
+
+function act(a){
+  const now = performance.now();
+  switch (a){
+    case 'up': case 'down': case 'left': case 'right':
+      queueTurn(a); break;
+    case 'ok':
+      if (IDLE_MODES[G.mode]){ newGame(now); sfx('start'); say('Game started.'); }  // also skips the teaser at any stage
+      else if (G.mode === 'paused') resume(now);
+      break; // ignored while playing and during the crash blink
+    case 'pause':
+      if (G.mode === 'playing') pause(); else if (G.mode === 'paused') resume(now);
+      break;
+    case 'sound':
+      setMuted(!muted); break;
+  }
+  dirty = true;
+}
+
+function updateLabel(){
+  let l;
+  switch (G.mode){
+    case 'boot': case 'intro': case 'demo':
+    case 'title':   l = 'Snake. Press 5 to start. Steer with 2, 4, 6 and 8 or the arrow keys.' + (G.best ? ' Top score ' + G.best + '.' : ''); break;
+    case 'playing': l = 'Playing. Score ' + G.score + '.'; break;
+    case 'paused':  l = 'Paused. Score ' + G.score + '.'; break;
+    case 'dying':   l = 'Crashed. Score ' + G.score + '.'; break;
+    default:        l = (G.won ? 'You win. ' : 'Game over. ') + 'Score ' + G.score + '. Press 5 to play again.';
+  }
+  if (l !== lastLabel){ canvas.setAttribute('aria-label', l); lastLabel = l; }
+}
+
+/* Single animation loop for the life of the page: restarts only reset state,
+   so there can never be two loops moving the snake. */
+function frame(now){
+  if (G.mode === 'playing'){
+    if (now - G.lastStep > G.interval * 4) G.lastStep = now - G.interval; // after a stall, resume without a burst
+    let guard = 0;
+    while (G.mode === 'playing' && now - G.lastStep >= G.interval && guard++ < 4){
+      G.lastStep += G.interval;
+      const ev = step(now);
+      if (ev === 'eat') sfx('eat');
+      else if (ev === 'die'){ sfx('over'); lastPhase = -1; }
+      else if (ev === 'win'){ sfx('win'); lastPhase = -1; }
+      dirty = true;
+    }
+  } else if (G.mode === 'dying'){
+    const t = now - G.modeAt;
+    if (t >= DIE_MS){
+      setMode('over', now);
+      say((G.won ? 'You win. ' : 'Game over. ') + 'Score ' + G.score + '.' + (G.newBest ? ' New top score.' : '') + ' Press 5 to play again.');
+    } else {
+      const ph = Math.floor(t / BLINK_MS);
+      if (ph !== lastPhase){ lastPhase = ph; dirty = true; }
+    }
+  } else if (G.mode === 'boot'){
+    if (now - G.modeAt >= BOOT_MS) setMode('intro', now);
+  } else if (G.mode === 'intro'){
+    if (now - G.modeAt >= INTRO_MS){ demoReset(now); setMode('demo', now); }
+  } else if (G.mode === 'demo'){
+    if (now - D.lastStep > DEMO_MS * 4) D.lastStep = now - DEMO_MS;
+    let guard = 0;
+    while (G.mode === 'demo' && now - D.lastStep >= DEMO_MS && guard++ < 4){
+      D.lastStep += DEMO_MS;
+      if (!demoStep()) setMode('title', now);
+      dirty = true;
+    }
+  } else if (G.mode === 'title'){
+    if (now - G.modeAt >= TITLE_IDLE_MS) setMode('intro', now);
+  } else if (G.mode === 'over'){
+    if (now - G.modeAt >= OVER_IDLE_MS) setMode('intro', now);
+  }
+  if (dirty || fading){ compose(now); paint(now); updateLabel(); dirty = false; }
+  requestAnimationFrame(frame);
+}
+
+/* =========================================================
+   Input: keypad (pointer + keyboard focus) and desktop keys
+   ========================================================= */
+const phone = document.getElementById('phone');
+const KEY_FOR = {
+  up: document.getElementById('k2'), left: document.getElementById('k4'),
+  right: document.getElementById('k6'), down: document.getElementById('k8'),
+  ok: document.getElementById('k5'), pause: document.getElementById('k-c'), sound: sndBtn
+};
+function pulse(b){ if (!b) return; b.classList.add('down'); setTimeout(() => b.classList.remove('down'), 110); }
+
+for (const b of phone.querySelectorAll('button')){
+  const a = b.dataset.act || '';
+  let lastPtr = 0;
+  b.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault();                       // no focus steal, no text selection, no delay
+    try { b.setPointerCapture(e.pointerId); } catch(_){}
+    b.classList.add('down');
+    lastPtr = performance.now();
+    try { window.focus(); } catch(_){}
+    if (a) act(a);
+  });
+  const up = () => b.classList.remove('down');
+  b.addEventListener('pointerup', up);
+  b.addEventListener('pointercancel', up);
+  b.addEventListener('lostpointercapture', up);
+  b.addEventListener('click', () => {       // keyboard activation of a focused key
+    if (performance.now() - lastPtr < 800) return;
+    if (a) act(a);
+    pulse(b);
+  });
+  b.addEventListener('contextmenu', e => e.preventDefault());
+}
+document.addEventListener('pointerup', unlockAudio, { passive: true });
+document.addEventListener('touchend', unlockAudio, { passive: true });
+
+const KEYMAP = {
+  ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right',
+  '2':'up', '4':'left', '6':'right', '8':'down', '5':'ok',
+  Enter:'ok', ' ':'pause', p:'pause', P:'pause', Escape:'pause', m:'sound', M:'sound'
+};
+const held = new Map();
+window.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const a = KEYMAP[e.key];
+  if (!a) return;
+  const onButton = e.target && e.target.tagName === 'BUTTON';
+  if (onButton && (e.key === 'Enter' || e.key === ' ')) return; // the focused key's own click handles it
+  e.preventDefault();
+  if (e.repeat && (a === 'ok' || a === 'pause' || a === 'sound')) return;
+  act(a);
+  const b = KEY_FOR[a];
+  if (b){ b.classList.add('down'); held.set(e.key, b); }
+});
+window.addEventListener('keyup', e => {
+  const b = held.get(e.key);
+  if (b){ b.classList.remove('down'); held.delete(e.key); }
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+window.addEventListener('blur', () => {
+  pause();
+  for (const b of held.values()) b.classList.remove('down');
+  held.clear();
+});
+
+/* =========================================================
+   Responsive fit: scale the whole handset as one object
+   ========================================================= */
+const stage = document.getElementById('stage');
+function fit(){
+  const w = stage.clientWidth || window.innerWidth;
+  const h = stage.clientHeight || window.innerHeight;
+  const s = Math.max(0.42, Math.min((w - 32) / PHONE_W, (h - 20) / PHONE_H, 1.45));
+  phone.style.setProperty('--s', s.toFixed(4));
+  sizeCanvas();
+}
+window.addEventListener('resize', fit);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
+
+/* =========================================================
+   Boot (keeps an in-progress game across live updates)
+   ========================================================= */
+function snapshot(){
+  const d = { best: G.best, muted };
+  if (G.mode === 'playing' || G.mode === 'paused'){
+    d.game = { snake: G.snake.map(c => ({x:c.x, y:c.y})), dir: G.dir, food: G.food, score: G.score, interval: G.interval };
+  }
+  return d;
+}
+function start(data){
+  data = data || {};
+  if (typeof data.best === 'number' && data.best > G.best) G.best = data.best;
+  if (typeof data.muted === 'boolean') muted = data.muted;
+  sndBtn.setAttribute('aria-pressed', String(!muted));
+  const g = data.game;
+  if (g && Array.isArray(g.snake) && g.snake.length && DIRS[g.dir]){
+    G.occ.fill(0);
+    G.snake = g.snake.filter(c => c.x >= 0 && c.y >= 0 && c.x < COLS && c.y < ROWS);
+    for (const c of G.snake) G.occ[cell(c.x, c.y)] = 1;
+    G.dir = g.dir; G.queue.length = 0; G.score = g.score | 0;
+    G.interval = g.interval || BASE_MS;
+    G.food = (g.food && !G.occ[cell(g.food.x, g.food.y)]) ? g.food : spawnFood();
+    G.mode = G.snake.length ? 'paused' : 'title';
+  }
+  G.modeAt = performance.now();
+  // optional power-on beep: only when the page already has user activation, so it never queues up silently
+  try { if (G.mode === 'boot' && navigator.userActivation && navigator.userActivation.hasBeenActive) sfx('boot'); } catch(_){}
+  fit();
+  try { window.focus(); } catch(_){}
+  requestAnimationFrame(frame);
+}
+try { window.claude?.hot?.snapshot?.(snapshot); } catch(_){}
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
+
+<script>
+/* PWA shell: service worker + discreet install button. Independent of the game. */
+(() => {
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => { navigator.serviceWorker.register('./service-worker.js', { scope: './' }).catch(() => {}); });
+  }
+  const btn = document.getElementById('install');
+  let deferred = null;
+  const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    if (standalone()) return;
+    deferred = e; btn.hidden = false;
+  });
+  btn.addEventListener('pointerdown', e => e.stopPropagation());
+  btn.addEventListener('click', async () => {
+    if (!deferred) return;
+    btn.hidden = true;
+    deferred.prompt();
+    try { await deferred.userChoice; } catch (_) {}
+    deferred = null;
+  });
+  window.addEventListener('appinstalled', () => { deferred = null; btn.hidden = true; });
+})();
+</script>
+</body>
+</html>
