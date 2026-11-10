@@ -647,7 +647,11 @@ function audio(){
   if (actx.state === 'suspended') actx.resume().catch(() => {});
   return actx;
 }
-function unlockAudio(){ if (actx && actx.state === 'suspended') actx.resume().catch(() => {}); }
+function unlockAudio(){
+  if (muted) return;
+  const a = audio();
+  if (a && a.state === 'suspended') a.resume().catch(() => {});
+}
 function tone(f, t, d, v = 0.07){
   const o = actx.createOscillator(), g = actx.createGain();
   o.type = 'square';
