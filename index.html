@@ -641,16 +641,25 @@ function audio(){
   if (!actx){
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
-    try { actx = new AC(); master = actx.createGain(); master.gain.value = 0.5; master.connect(actx.destination); }
-    catch(e){ actx = null; return null; }
+    try {
+      actx = new AC();
+      master = actx.createGain();
+      master.gain.value = 0.5;
+      master.connect(actx.destination);
+    } catch(e){
+      actx = null;
+      master = null;
+      return null;
+    }
   }
-  if (actx.state === 'suspended') actx.resume().catch(() => {});
   return actx;
 }
 function unlockAudio(){
-  if (muted) return;
+  if (muted) return Promise.resolve(null);
   const a = audio();
-  if (a && a.state === 'suspended') a.resume().catch(() => {});
+  if (!a) return Promise.resolve(null);
+  if (a.state === 'running') return Promise.resolve(a);
+  return a.resume().then(() => a).catch(() => null);
 }
 function tone(f, t, d, v = 0.07){
   const o = actx.createOscillator(), g = actx.createGain();
@@ -663,9 +672,8 @@ function tone(f, t, d, v = 0.07){
   o.connect(g); g.connect(master);
   o.start(t); o.stop(t + d + 0.02);
 }
-function sfx(name){
-  if (muted) return;
-  const a = audio(); if (!a) return;
+function playSfx(name, a){
+  if (!a || a.state !== 'running' || !master) return;
   const t = a.currentTime + 0.01;
   switch (name){
     case 'start': tone(1047, t, .07); tone(1568, t + .09, .1); break;
@@ -674,6 +682,16 @@ function sfx(name){
     case 'over':  tone(784, t, .12); tone(587, t + .14, .12); tone(392, t + .28, .24); break;
     case 'win':   tone(1047, t, .08); tone(1319, t + .1, .08); tone(1568, t + .2, .08); tone(2093, t + .3, .2); break;
     case 'tick':  tone(1319, t, .05, .05); break;
+  }
+}
+function sfx(name){
+  if (muted) return;
+  const a = audio();
+  if (!a) return;
+  if (a.state === 'running') {
+    playSfx(name, a);
+  } else {
+    unlockAudio().then(running => { if (!muted && running) playSfx(name, running); });
   }
 }
 
@@ -795,6 +813,7 @@ for (const b of phone.querySelectorAll('button')){
     b.classList.add('down');
     lastPtr = performance.now();
     try { window.focus(); } catch(_){}
+    if (!muted) unlockAudio();
     if (a) act(a);
   });
   const up = () => b.classList.remove('down');
